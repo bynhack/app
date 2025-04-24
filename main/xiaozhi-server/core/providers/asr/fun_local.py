@@ -54,22 +54,35 @@ class ASRProvider(ASRProviderBase):
         """将Opus音频数据解码并保存为WAV文件"""
         file_name = f"asr_{session_id}_{uuid.uuid4()}.wav"
         file_path = os.path.join(self.output_dir, file_name)
+        # 检查第一个数据包的特征来判断格式
+        # PCM数据包通常较大（如：640字节或1280字节）
+        # OPUS数据包通常较小（如：40-120字节）
+        is_pcm = len(opus_data[0]) >= 640 if opus_data else True
 
-        decoder = opuslib_next.Decoder(16000, 1)  # 16kHz, 单声道
-        pcm_data = []
+        if is_pcm:
+            # 合并所有PCM数据
+            combined_pcm = b"".join(opus_data)
+            with wave.open(file_path, "wb") as wf:
+                wf.setnchannels(1)  # 单声道
+                wf.setsampwidth(2)  # 16位采样
+                wf.setframerate(16000)  # 16kHz采样率
+                wf.writeframes(combined_pcm)
+        else:
+            decoder = opuslib_next.Decoder(16000, 1)  # 16kHz, 单声道
+            pcm_data = []
 
-        for opus_packet in opus_data:
-            try:
-                pcm_frame = decoder.decode(opus_packet, 960)  # 960 samples = 60ms
-                pcm_data.append(pcm_frame)
-            except opuslib_next.OpusError as e:
-                logger.bind(tag=TAG).error(f"Opus解码错误: {e}", exc_info=True)
+            for opus_packet in opus_data:
+                try:
+                    pcm_frame = decoder.decode(opus_packet, 960)  # 960 samples = 60ms
+                    pcm_data.append(pcm_frame)
+                except opuslib_next.OpusError as e:
+                    logger.bind(tag=TAG).error(f"Opus解码错误: {e}", exc_info=True)
 
-        with wave.open(file_path, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)  # 2 bytes = 16-bit
-            wf.setframerate(16000)
-            wf.writeframes(b"".join(pcm_data))
+            with wave.open(file_path, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)  # 2 bytes = 16-bit
+                wf.setframerate(16000)
+                wf.writeframes(b"".join(pcm_data))
 
         return file_path
 

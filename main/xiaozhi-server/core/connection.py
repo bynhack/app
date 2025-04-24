@@ -55,6 +55,7 @@ class ConnectionHandler:
         self.headers = None
         self.client_ip = None
         self.client_ip_info = {}
+        self.audio_type = "PCM"  # PCM, OPUS
         self.session_id = None
         self.prompt = None
         self.welcome_msg = None
@@ -140,6 +141,9 @@ class ConnectionHandler:
                         "无法从请求头和URL查询参数中获取device-id"
                     )
                     return
+                audio_type = query_params.get("audio_type", [""])[0]
+                if audio_type:
+                    self.audio_type = audio_type
 
             # 获取客户端ip地址
             self.client_ip = ws.remote_address[0]
@@ -783,7 +787,10 @@ class ConnectionHandler:
                             f"TTS生成：文件路径: {tts_file}"
                         )
                         if os.path.exists(tts_file):
-                            opus_datas, duration = self.tts.audio_to_opus_data(tts_file)
+                            if self.audio_type == "PCM":
+                                opus_datas, duration = self.tts.audio_to_pcm_data(tts_file)
+                            else:
+                                opus_datas, duration = self.tts.audio_to_opus_data(tts_file)
                         else:
                             self.logger.bind(tag=TAG).error(
                                 f"TTS出错：文件不存在{tts_file}"

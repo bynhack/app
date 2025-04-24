@@ -94,3 +94,29 @@ class TTSProviderBase(ABC):
             opus_datas.append(opus_data)
 
         return opus_datas, duration
+    
+    def audio_to_pcm_data(self, audio_file_path):
+        """读取 WAV 文件并返回音频数据和时长"""
+        try:
+            # 直接读取完整的 WAV 文件
+            with open(audio_file_path, 'rb') as f:
+                wav_data = f.read()
+            
+            # 使用 pydub 获取音频信息
+            audio = AudioSegment.from_file(audio_file_path)
+            duration = len(audio) / 1000.0  # 转换为秒
+            
+            # 确保音频是单声道、16kHz采样率
+            if audio.channels != 1 or audio.frame_rate != 16000:
+                audio = audio.set_channels(1).set_frame_rate(16000)
+                # 创建临时文件保存转换后的音频
+                temp_path = audio_file_path + '.temp.wav'
+                audio.export(temp_path, format='wav')
+                with open(temp_path, 'rb') as f:
+                    wav_data = f.read()
+                os.remove(temp_path)
+            
+            return wav_data,duration
+        except Exception as e:
+            logger.bind(tag=TAG).error(f"读取音频文件失败: {e}")
+            return None

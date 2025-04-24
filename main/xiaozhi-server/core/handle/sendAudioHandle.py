@@ -30,31 +30,43 @@ async def sendAudioMessage(conn, audios, text, text_index=0):
 
 # 播放音频
 async def sendAudio(conn, audios):
-    # 流控参数优化
-    frame_duration = 60  # 帧时长（毫秒），匹配 Opus 编码
-    start_time = time.perf_counter()
-    play_position = 0
-
-    # 预缓冲：发送前 3 帧
-    pre_buffer = min(3, len(audios))
-    for i in range(pre_buffer):
-        await conn.websocket.send(audios[i])
-
-    # 正常播放剩余帧
-    for opus_packet in audios[pre_buffer:]:
-        if conn.client_abort:
+    if conn.audio_type == "PCM":
+        # PCM：直接发送完整音频数据
+        if isinstance(audios, (bytes, bytearray)):
+            # 设置开始说话状态
+            # conn.asr_server_receive = False
+            await conn.websocket.send(audios)
+            # 恢复接收状态
+            # conn.asr_server_receive = True
+        else:
+            logger.bind(tag=TAG).error(f"无效的音频数据类型: {type(audios)}")
             return
+    else:
+        # 流控参数优化
+        frame_duration = 60  # 帧时长（毫秒），匹配 Opus 编码
+        start_time = time.perf_counter()
+        play_position = 0
 
-        # 计算预期发送时间
-        expected_time = start_time + (play_position / 1000)
-        current_time = time.perf_counter()
-        delay = expected_time - current_time
-        if delay > 0:
-            await asyncio.sleep(delay)
+        # 预缓冲：发送前 3 帧
+        pre_buffer = min(3, len(audios))
+        for i in range(pre_buffer):
+            await conn.websocket.send(audios[i])
 
-        await conn.websocket.send(opus_packet)
+        # 正常播放剩余帧
+        for opus_packet in audios[pre_buffer:]:
+            if conn.client_abort:
+                return
 
-        play_position += frame_duration
+            # 计算预期发送时间
+            expected_time = start_time + (play_position / 1000)
+            current_time = time.perf_counter()
+            delay = expected_time - current_time
+            if delay > 0:
+                await asyncio.sleep(delay)
+
+            await conn.websocket.send(opus_packet)
+
+            play_position += frame_duration
 
 
 async def send_tts_message(conn, state, text=None):
@@ -71,7 +83,10 @@ async def send_tts_message(conn, state, text=None):
             stop_tts_notify_voice = conn.config.get(
                 "stop_tts_notify_voice", "config/assets/tts_notify.mp3"
             )
-            audios, duration = conn.tts.audio_to_opus_data(stop_tts_notify_voice)
+            if conn.audio_type == "PCM":
+                audios, duration = conn.tts.audio_to_pcm_data(stop_tts_notify_voice)
+            else:
+                audios, duration = conn.tts.audio_to_opus_data(stop_tts_notify_voice)
             await sendAudio(conn, audios)
         # 清除服务端讲话状态
         conn.clearSpeakStatus()

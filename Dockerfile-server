@@ -1,12 +1,15 @@
 # 第一阶段：构建Python依赖
 FROM python:3.10-slim AS builder
 
+# 定义一个构建参数，可以设置默认值
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
 WORKDIR /app
 
 COPY main/xiaozhi-server/requirements.txt .
 
 # 安装Python依赖
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i ${PIP_INDEX_URL} -r requirements.txt
 
 # 第二阶段：生产镜像
 FROM python:3.10-slim

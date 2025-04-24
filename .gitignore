@@ -154,6 +154,7 @@ main/manager-web/node_modules
 # model files
 main/xiaozhi-server/models/SenseVoiceSmall/model.pt
 main/xiaozhi-server/models/sherpa-onnx*
+main/xiaozhi-server/data/.config.yaml
 my_wakeup_words.mp3
 !main/xiaozhi-server/config/assets/bind_code.wav
 !main/xiaozhi-server/config/assets/bind_not_found.wav

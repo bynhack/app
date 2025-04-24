@@ -44,7 +44,10 @@ async def checkWakeupWords(conn, text):
         if file is None:
             asyncio.create_task(wakeupWordsResponse(conn))
             return False
-        opus_packets, duration = conn.tts.audio_to_opus_data(file)
+        if conn.audio_type == "PCM":
+            opus_packets, duration = conn.tts.audio_to_pcm_data(file)
+        else:
+            opus_packets, duration = conn.tts.audio_to_opus_data(file)
         text_hello = WAKEUP_CONFIG["text"]
         if not text_hello:
             text_hello = text
